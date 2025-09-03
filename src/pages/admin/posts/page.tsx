@@ -111,12 +111,7 @@ export default function PostsPage() {
     undefined
   );
   const [selectedTag, setSelectedTag] = useState<number | undefined>(undefined);
-  const [selectedMonth, setSelectedMonth] = useState<number | undefined>(
-    undefined
-  );
-  const [selectedYear, setSelectedYear] = useState<number | undefined>(
-    undefined
-  );
+  const [selectedTimeRange, setSelectedTimeRange] = useState<string>("all");
   const postsPerPage = 6;
 
   // Fetch categories and tags for filters
@@ -130,16 +125,52 @@ export default function PostsPage() {
     ...(searchQuery && { search: searchQuery }),
     ...(selectedCategory && { categoryId: selectedCategory }),
     ...(selectedTag && { tagId: selectedTag }),
-    ...(selectedMonth && { month: selectedMonth }),
-    ...(selectedYear && { year: selectedYear }),
   };
-
   // Fetch posts with query parameters
   const { data: postsResponse, isLoading, error } = usePosts(queryParams);
   const deletePostMutation = useDeletePost();
 
+  // Apply time range filtering on the client side
+  const getFilteredPosts = () => {
+    if (!postsResponse?.data) return [];
+
+    let filteredPosts = postsResponse.data;
+
+    if (selectedTimeRange !== "all") {
+      const now = new Date();
+      const timeRanges = {
+        "1week": 7,
+        "1month": 30,
+        "6months": 180,
+        "1year": 365,
+        "5years": 1825,
+      };
+
+      const daysLimit =
+        timeRanges[selectedTimeRange as keyof typeof timeRanges];
+      if (daysLimit) {
+        filteredPosts = filteredPosts.filter((post) => {
+          const postDate = new Date(post.createdAt);
+          const timeDiff = now.getTime() - postDate.getTime();
+          const daysDiff = timeDiff / (1000 * 3600 * 24);
+          return daysDiff <= daysLimit;
+        });
+      }
+    }
+
+    return filteredPosts;
+  };
+
+  const filteredPosts = getFilteredPosts();
+
   const posts = postsResponse?.data || [];
-  const pagination = postsResponse?.pagination;
+
+  // Calculate pagination for filtered posts
+  const totalFilteredPosts = filteredPosts.length;
+  const totalFilteredPages = Math.ceil(totalFilteredPosts / postsPerPage);
+  const startIndex = (currentPage - 1) * postsPerPage;
+  const endIndex = startIndex + postsPerPage;
+  const currentPosts = filteredPosts.slice(startIndex, endIndex);
 
   // Handle search with debouncing
   useEffect(() => {
@@ -153,7 +184,7 @@ export default function PostsPage() {
   // Reset page when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [selectedCategory, selectedTag, selectedMonth, selectedYear]);
+  }, [selectedCategory, selectedTag, selectedTimeRange]);
 
   const handleDeletePost = async (postId: string) => {
     try {
@@ -298,64 +329,34 @@ export default function PostsPage() {
               </Select>
 
               <Select
-                value={selectedMonth?.toString() || "all"}
-                onValueChange={(value) =>
-                  setSelectedMonth(
-                    value === "all" ? undefined : parseInt(value)
-                  )
-                }
+                value={selectedTimeRange}
+                onValueChange={setSelectedTimeRange}
               >
                 <SelectTrigger className="w-full sm:w-48 h-12 bg-white/60 dark:bg-gray-900/60 border-green-200/50 hover:border-green-300 rounded-xl">
                   <div className="flex items-center gap-2">
                     <Calendar className="h-4 w-4 text-green-600" />
-                    <SelectValue placeholder="Filter by month" />
+                    <SelectValue placeholder="Filter by time" />
                   </div>
                 </SelectTrigger>
                 <SelectContent className="rounded-xl border-0 shadow-xl bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm">
                   <SelectItem value="all" className="rounded-lg">
-                    All Months
+                    All Times
                   </SelectItem>
-                  {Array.from({ length: 12 }, (_, i) => i + 1).map((month) => (
-                    <SelectItem
-                      key={month}
-                      value={month.toString()}
-                      className="rounded-lg"
-                    >
-                      {new Date(2024, month - 1).toLocaleDateString("en-US", {
-                        month: "long",
-                      })}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              <Select
-                value={selectedYear?.toString() || "all"}
-                onValueChange={(value) =>
-                  setSelectedYear(value === "all" ? undefined : parseInt(value))
-                }
-              >
-                <SelectTrigger className="w-full sm:w-48 h-12 bg-white/60 dark:bg-gray-900/60 border-orange-200/50 hover:border-orange-300 rounded-xl">
-                  <div className="flex items-center gap-2">
-                    <Calendar className="h-4 w-4 text-orange-600" />
-                    <SelectValue placeholder="Filter by year" />
-                  </div>
-                </SelectTrigger>
-                <SelectContent className="rounded-xl border-0 shadow-xl bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm">
-                  <SelectItem value="all" className="rounded-lg">
-                    All Years
+                  <SelectItem value="1week" className="rounded-lg">
+                    1 Week
                   </SelectItem>
-                  {Array.from({ length: 10 }, (_, i) => 2024 - i).map(
-                    (year) => (
-                      <SelectItem
-                        key={year}
-                        value={year.toString()}
-                        className="rounded-lg"
-                      >
-                        {year}
-                      </SelectItem>
-                    )
-                  )}
+                  <SelectItem value="1month" className="rounded-lg">
+                    1 Month
+                  </SelectItem>
+                  <SelectItem value="6months" className="rounded-lg">
+                    6 Months
+                  </SelectItem>
+                  <SelectItem value="1year" className="rounded-lg">
+                    1 Year
+                  </SelectItem>
+                  <SelectItem value="5years" className="rounded-lg">
+                    5 Years
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -375,7 +376,7 @@ export default function PostsPage() {
                 <CardTitle className="text-2xl">
                   {isLoading
                     ? "Loading Stories..."
-                    : `Your Stories (${pagination?.total || posts.length})`}
+                    : `Your Stories (${totalFilteredPosts})`}
                 </CardTitle>
                 <CardDescription>
                   Manage and track your creative content
@@ -396,7 +397,7 @@ export default function PostsPage() {
           ) : (
             <>
               <div className="grid gap-4">
-                {posts.map((post, index) => (
+                {currentPosts.map((post, index) => (
                   <div
                     key={post.id}
                     className="group relative overflow-hidden rounded-2xl bg-white/70 dark:bg-gray-900/70 border border-white/50 dark:border-gray-800/50 hover:bg-white/90 dark:hover:bg-gray-900/90 hover:shadow-xl transition-all duration-500 hover:scale-[1.02]"
@@ -510,23 +511,20 @@ export default function PostsPage() {
                 ))}
               </div>
 
-              {pagination && pagination.totalPages > 1 && (
+              {totalFilteredPages > 1 && (
                 <div className="flex items-center justify-between mt-8 pt-6 border-t border-blue-100 dark:border-blue-800/30">
                   <div className="text-sm text-muted-foreground">
-                    Showing {(pagination.page - 1) * pagination.limit + 1} to{" "}
-                    {Math.min(
-                      pagination.page * pagination.limit,
-                      pagination.total
-                    )}{" "}
-                    of {pagination.total} stories
+                    Showing {startIndex + 1} to{" "}
+                    {Math.min(endIndex, totalFilteredPosts)} of{" "}
+                    {totalFilteredPosts} stories
                   </div>
 
                   <div className="flex items-center gap-2">
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => setCurrentPage(pagination.page - 1)}
-                      disabled={!pagination.hasPrev}
+                      onClick={() => setCurrentPage(currentPage - 1)}
+                      disabled={currentPage === 1}
                       className="gap-2 bg-white/60 dark:bg-gray-900/60 hover:bg-white/80 dark:hover:bg-gray-900/80 border-blue-200/50 hover:border-blue-300 rounded-xl disabled:opacity-50"
                     >
                       <ChevronLeft className="h-4 w-4" />
@@ -535,18 +533,16 @@ export default function PostsPage() {
 
                     <div className="flex items-center gap-1">
                       {Array.from(
-                        { length: pagination.totalPages },
+                        { length: totalFilteredPages },
                         (_, i) => i + 1
                       ).map((page) => (
                         <Button
                           key={page}
-                          variant={
-                            pagination.page === page ? "default" : "outline"
-                          }
+                          variant={currentPage === page ? "default" : "outline"}
                           size="sm"
                           onClick={() => setCurrentPage(page)}
                           className={`w-10 h-10 rounded-xl ${
-                            pagination.page === page
+                            currentPage === page
                               ? "bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white"
                               : "bg-white/60 dark:bg-gray-900/60 hover:bg-white/80 dark:hover:bg-gray-900/80 border-blue-200/50 hover:border-blue-300"
                           }`}
@@ -559,8 +555,8 @@ export default function PostsPage() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => setCurrentPage(pagination.page + 1)}
-                      disabled={!pagination.hasNext}
+                      onClick={() => setCurrentPage(currentPage + 1)}
+                      disabled={currentPage === totalFilteredPages}
                       className="gap-2 bg-white/60 dark:bg-gray-900/60 hover:bg-white/80 dark:hover:bg-gray-900/80 border-blue-200/50 hover:border-blue-300 rounded-xl disabled:opacity-50"
                     >
                       Next
