@@ -51,6 +51,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Link } from "react-router";
 
 function PostCardSkeleton() {
   return (
@@ -330,13 +331,15 @@ export default function PostsPage() {
               </p>
             </div>
           </div>
-          <Button
-            size="lg"
-            className="gap-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg hover:shadow-xl transition-all duration-300 px-8"
-          >
-            <Plus className="h-5 w-5" />
-            Create Story
-          </Button>
+          <Link to={"/dashboard/posts/create"}>
+            <Button
+              size="lg"
+              className="gap-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg hover:shadow-xl transition-all duration-300 px-8"
+            >
+              <Plus className="h-5 w-5" />
+              Create Story
+            </Button>
+          </Link>
         </div>
       </div>
 
@@ -344,12 +347,12 @@ export default function PostsPage() {
         <CardContent className="pt-6">
           <div className="flex flex-col sm:flex-row gap-4">
             <div className="relative flex-1">
-              <div className="absolute left-4 top-1/2 transform -translate-y-1/2 p-1 rounded-full bg-blue-500/10">
-                <Search className="h-4 w-4 text-blue-600" />
+              <div className="absolute left-2 top-1/2 transform -translate-y-1/2 p-1 rounded-full bg-blue-500/10">
+                <Search className="size-4 text-blue-600" />
               </div>
               <Input
                 placeholder="Search your stories..."
-                className="pl-12 h-12 bg-white/60 dark:bg-gray-900/60 border-blue-200/50 focus:border-blue-400 focus:ring-blue-400/20 rounded-xl"
+                className="pl-12 bg-white/60 dark:bg-gray-900/60 border-blue-200/50 focus:border-blue-400 focus:ring-blue-400/20 rounded-xl"
               />
             </div>
 
@@ -522,7 +525,7 @@ export default function PostsPage() {
                           </Badge>
                           <div className="flex items-center gap-2 text-muted-foreground">
                             <User className="h-3 w-3" />
-                            <span>{post.author}</span>
+                            <span>Yaser Syafa</span>
                           </div>
                           <div className="flex items-center gap-2 text-muted-foreground">
                             <Clock className="h-3 w-3" />
@@ -541,33 +544,6 @@ export default function PostsPage() {
                             </Badge>
                           ))}
                         </div>
-                      </div>
-
-                      <div className="flex items-center gap-6 text-sm ml-6">
-                        <div className="flex items-center gap-2 px-3 py-2 rounded-full bg-blue-50 dark:bg-blue-950/30 border border-blue-200/50">
-                          <Eye className="h-4 w-4 text-blue-600" />
-                          <span className="font-semibold text-blue-700 dark:text-blue-300">
-                            {post.views}
-                          </span>
-                        </div>
-                        <Badge
-                          variant={
-                            post.status === "Published"
-                              ? "default"
-                              : post.status === "Draft"
-                              ? "secondary"
-                              : "outline"
-                          }
-                          className={`text-xs px-3 py-1 rounded-full ${
-                            post.status === "Published"
-                              ? "bg-green-100 text-green-700 border-green-200"
-                              : post.status === "Draft"
-                              ? "bg-yellow-100 text-yellow-700 border-yellow-200"
-                              : "bg-orange-100 text-orange-700 border-orange-200"
-                          }`}
-                        >
-                          {post.status}
-                        </Badge>
                       </div>
                     </div>
                   </div>

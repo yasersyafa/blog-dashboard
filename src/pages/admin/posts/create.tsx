@@ -57,12 +57,9 @@ export default function CreatePostPage() {
   const watchedTags = watch("tags");
 
   const onSubmit = async (data: CreatePostFormData) => {
-    const formDataWithContent = {
-      ...data,
-    };
     try {
       // Update content with editor content
-      await createPostMutation.mutateAsync(formDataWithContent);
+      await createPostMutation.mutateAsync(data);
       // Redirect to posts list on success
       navigate("/dashboard/posts");
     } catch (error) {
