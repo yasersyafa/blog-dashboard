@@ -1,16 +1,5 @@
 import { useState, useEffect } from "react";
-
-interface Post {
-  id: number;
-  title: string;
-  category: string;
-  tags: string[];
-  status: string;
-  views: string;
-  date: string;
-  author: string;
-  createdAt: Date;
-}
+import { useNavigate } from "react-router";
 import {
   Card,
   CardContent,
@@ -33,7 +22,6 @@ import {
   Sparkles,
   TrendingUp,
   Clock,
-  User,
   FileText,
   ChevronLeft,
   ChevronRight,
@@ -51,7 +39,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Link } from "react-router";
+import { usePosts } from "@/hooks/usePosts";
+import { useCategories } from "@/hooks/useCategories";
+import { useTags } from "@/hooks/useTags";
+import { useDeletePost } from "@/hooks/usePosts";
+import type { GetPostsQueryParams } from "@/types/post";
+import { toast } from "sonner";
 
 function PostCardSkeleton() {
   return (
@@ -84,6 +77,8 @@ function PostCardSkeleton() {
 }
 
 function EmptyState() {
+  const navigate = useNavigate();
+
   return (
     <div className="flex flex-col items-center justify-center py-16 text-center">
       <div className="p-6 rounded-full bg-blue-100 dark:bg-blue-900/30 mb-6">
@@ -99,6 +94,7 @@ function EmptyState() {
       <Button
         size="lg"
         className="gap-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg hover:shadow-xl transition-all duration-300"
+        onClick={() => navigate("/dashboard/posts/create")}
       >
         <Plus className="h-5 w-5" />
         Create Your First Story
@@ -108,207 +104,92 @@ function EmptyState() {
 }
 
 export default function PostsPage() {
-  const [isLoading, setIsLoading] = useState(true);
-  const [posts, setPosts] = useState<Post[]>([]);
+  const navigate = useNavigate();
   const [currentPage, setCurrentPage] = useState(1);
-  const [selectedCategory, setSelectedCategory] = useState("all");
-  const [selectedTimeRange, setSelectedTimeRange] = useState("all");
-  const postsPerPage = 5;
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState<number | undefined>(
+    undefined
+  );
+  const [selectedTag, setSelectedTag] = useState<number | undefined>(undefined);
+  const [selectedMonth, setSelectedMonth] = useState<number | undefined>(
+    undefined
+  );
+  const [selectedYear, setSelectedYear] = useState<number | undefined>(
+    undefined
+  );
+  const postsPerPage = 6;
 
+  // Fetch categories and tags for filters
+  const { data: categories = [] } = useCategories();
+  const { data: tags = [] } = useTags();
+
+  // Build query parameters
+  const queryParams: GetPostsQueryParams = {
+    page: currentPage,
+    limit: postsPerPage,
+    ...(searchQuery && { search: searchQuery }),
+    ...(selectedCategory && { categoryId: selectedCategory }),
+    ...(selectedTag && { tagId: selectedTag }),
+    ...(selectedMonth && { month: selectedMonth }),
+    ...(selectedYear && { year: selectedYear }),
+  };
+
+  // Fetch posts with query parameters
+  const { data: postsResponse, isLoading, error } = usePosts(queryParams);
+  const deletePostMutation = useDeletePost();
+
+  const posts = postsResponse?.data || [];
+  const pagination = postsResponse?.pagination;
+
+  // Handle search with debouncing
   useEffect(() => {
-    const loadPosts = async () => {
-      setIsLoading(true);
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+    const timer = setTimeout(() => {
+      setCurrentPage(1); // Reset to first page when searching
+    }, 500);
 
-      const hasData = Math.random() > 0.2;
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
-      if (hasData) {
-        setPosts([
-          {
-            id: 1,
-            title: "Getting Started with Next.js 15",
-            category: "Development",
-            tags: ["Next.js", "React", "JavaScript"],
-            status: "Published",
-            views: "1.2K",
-            date: "Dec 15, 2024",
-            author: "John Doe",
-            createdAt: new Date("2024-12-15"),
-          },
-          {
-            id: 2,
-            title: "The Future of Web Development",
-            category: "Technology",
-            tags: ["Web Dev", "Trends", "Future"],
-            status: "Draft",
-            views: "0",
-            date: "Dec 14, 2024",
-            author: "Jane Smith",
-            createdAt: new Date("2024-12-14"),
-          },
-          {
-            id: 3,
-            title: "Building Scalable React Applications",
-            category: "Development",
-            tags: ["React", "Architecture", "Scalability"],
-            status: "Published",
-            views: "856",
-            date: "Dec 12, 2024",
-            author: "Mike Johnson",
-            createdAt: new Date("2024-12-12"),
-          },
-          {
-            id: 4,
-            title: "UI/UX Design Trends for 2025",
-            category: "Design",
-            tags: ["UI", "UX", "Design", "Trends"],
-            status: "Published",
-            views: "2.1K",
-            date: "Dec 10, 2024",
-            author: "Sarah Wilson",
-            createdAt: new Date("2024-12-10"),
-          },
-          {
-            id: 5,
-            title: "Introduction to TypeScript",
-            category: "Development",
-            tags: ["TypeScript", "JavaScript", "Programming"],
-            status: "Scheduled",
-            views: "0",
-            date: "Dec 20, 2024",
-            author: "Alex Brown",
-            createdAt: new Date("2024-12-20"),
-          },
-          {
-            id: 6,
-            title: "Advanced CSS Grid Techniques",
-            category: "Design",
-            tags: ["CSS", "Grid", "Layout"],
-            status: "Published",
-            views: "743",
-            date: "Nov 28, 2024",
-            author: "Emma Davis",
-            createdAt: new Date("2024-11-28"),
-          },
-          {
-            id: 7,
-            title: "Machine Learning Basics",
-            category: "Technology",
-            tags: ["ML", "AI", "Python"],
-            status: "Published",
-            views: "1.8K",
-            date: "Nov 15, 2024",
-            author: "David Chen",
-            createdAt: new Date("2024-11-15"),
-          },
-          {
-            id: 8,
-            title: "Mobile-First Design Principles",
-            category: "Design",
-            tags: ["Mobile", "Responsive", "UX"],
-            status: "Draft",
-            views: "0",
-            date: "Oct 22, 2024",
-            author: "Lisa Park",
-            createdAt: new Date("2024-10-22"),
-          },
-          {
-            id: 9,
-            title: "API Security Best Practices",
-            category: "Development",
-            tags: ["API", "Security", "Backend"],
-            status: "Published",
-            views: "1.5K",
-            date: "Sep 18, 2024",
-            author: "Robert Kim",
-            createdAt: new Date("2024-09-18"),
-          },
-          {
-            id: 10,
-            title: "Cloud Computing Fundamentals",
-            category: "Technology",
-            tags: ["Cloud", "AWS", "DevOps"],
-            status: "Published",
-            views: "2.3K",
-            date: "Aug 25, 2024",
-            author: "Maria Garcia",
-            createdAt: new Date("2024-08-25"),
-          },
-          {
-            id: 11,
-            title: "Accessibility in Web Design",
-            category: "Design",
-            tags: ["A11y", "Accessibility", "Web"],
-            status: "Published",
-            views: "967",
-            date: "Jul 12, 2024",
-            author: "James Wilson",
-            createdAt: new Date("2024-07-12"),
-          },
-          {
-            id: 12,
-            title: "Database Optimization Strategies",
-            category: "Development",
-            tags: ["Database", "Performance", "SQL"],
-            status: "Published",
-            views: "1.1K",
-            date: "Jun 8, 2024",
-            author: "Anna Lee",
-            createdAt: new Date("2024-06-08"),
-          },
-        ]);
-      }
-
-      setIsLoading(false);
-    };
-
-    loadPosts();
-  }, []);
-
-  const filteredPosts = posts.filter((post) => {
-    const categoryMatch =
-      selectedCategory === "all" || post.category === selectedCategory;
-
-    let timeMatch = true;
-    if (selectedTimeRange !== "all") {
-      const now = new Date();
-      const postDate = post.createdAt;
-      const timeDiff = now.getTime() - postDate.getTime();
-      const daysDiff = timeDiff / (1000 * 3600 * 24);
-
-      switch (selectedTimeRange) {
-        case "week":
-          timeMatch = daysDiff <= 7;
-          break;
-        case "month":
-          timeMatch = daysDiff <= 30;
-          break;
-        case "3months":
-          timeMatch = daysDiff <= 90;
-          break;
-        case "year":
-          timeMatch = daysDiff <= 365;
-          break;
-        case "3years":
-          timeMatch = daysDiff <= 1095;
-          break;
-        case "5years":
-          timeMatch = daysDiff <= 1825;
-          break;
-      }
-    }
-
-    return categoryMatch && timeMatch;
-  });
-
-  const totalPages = Math.ceil(filteredPosts.length / postsPerPage);
-  const startIndex = (currentPage - 1) * postsPerPage;
-  const endIndex = startIndex + postsPerPage;
-  const currentPosts = filteredPosts.slice(startIndex, endIndex);
-
+  // Reset page when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [selectedCategory, selectedTimeRange]);
+  }, [selectedCategory, selectedTag, selectedMonth, selectedYear]);
+
+  const handleDeletePost = async (postId: string) => {
+    try {
+      await deletePostMutation.mutateAsync(postId);
+      toast.success("Post deleted successfully");
+    } catch (error: unknown) {
+      console.error("failed to delete posts", error);
+    }
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+  };
+
+  const getReadTimeText = (readTime: number) => {
+    return `${readTime} min read`;
+  };
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center py-16">
+        <div className="text-center">
+          <h3 className="text-xl font-semibold text-red-600 mb-2">
+            Error loading posts
+          </h3>
+          <p className="text-gray-500">
+            {error instanceof Error ? error.message : "Something went wrong"}
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
@@ -331,15 +212,14 @@ export default function PostsPage() {
               </p>
             </div>
           </div>
-          <Link to={"/dashboard/posts/create"}>
-            <Button
-              size="lg"
-              className="gap-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg hover:shadow-xl transition-all duration-300 px-8"
-            >
-              <Plus className="h-5 w-5" />
-              Create Story
-            </Button>
-          </Link>
+          <Button
+            size="lg"
+            className="gap-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg hover:shadow-xl transition-all duration-300 px-8"
+            onClick={() => navigate("/dashboard/posts/create")}
+          >
+            <Plus className="h-5 w-5" />
+            Create Story
+          </Button>
         </div>
       </div>
 
@@ -352,14 +232,20 @@ export default function PostsPage() {
               </div>
               <Input
                 placeholder="Search your stories..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-12 bg-white/60 dark:bg-gray-900/60 border-blue-200/50 focus:border-blue-400 focus:ring-blue-400/20 rounded-xl"
               />
             </div>
 
             <div className="flex flex-col sm:flex-row gap-3">
               <Select
-                value={selectedCategory}
-                onValueChange={setSelectedCategory}
+                value={selectedCategory?.toString() || "all"}
+                onValueChange={(value) =>
+                  setSelectedCategory(
+                    value === "all" ? undefined : parseInt(value)
+                  )
+                }
               >
                 <SelectTrigger className="w-full sm:w-48 h-12 bg-white/60 dark:bg-gray-900/60 border-indigo-200/50 hover:border-indigo-300 rounded-xl">
                   <div className="flex items-center gap-2">
@@ -371,50 +257,105 @@ export default function PostsPage() {
                   <SelectItem value="all" className="rounded-lg">
                     All Categories
                   </SelectItem>
-                  <SelectItem value="Development" className="rounded-lg">
-                    Development
-                  </SelectItem>
-                  <SelectItem value="Design" className="rounded-lg">
-                    Design
-                  </SelectItem>
-                  <SelectItem value="Technology" className="rounded-lg">
-                    Technology
-                  </SelectItem>
+                  {categories.map((category) => (
+                    <SelectItem
+                      key={category.id}
+                      value={category.id.toString()}
+                      className="rounded-lg"
+                    >
+                      {category.name}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
 
               <Select
-                value={selectedTimeRange}
-                onValueChange={setSelectedTimeRange}
+                value={selectedTag?.toString() || "all"}
+                onValueChange={(value) =>
+                  setSelectedTag(value === "all" ? undefined : parseInt(value))
+                }
               >
                 <SelectTrigger className="w-full sm:w-48 h-12 bg-white/60 dark:bg-gray-900/60 border-purple-200/50 hover:border-purple-300 rounded-xl">
                   <div className="flex items-center gap-2">
-                    <Calendar className="h-4 w-4 text-purple-600" />
-                    <SelectValue placeholder="Filter by time" />
+                    <Filter className="h-4 w-4 text-purple-600" />
+                    <SelectValue placeholder="Filter by tag" />
                   </div>
                 </SelectTrigger>
                 <SelectContent className="rounded-xl border-0 shadow-xl bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm">
                   <SelectItem value="all" className="rounded-lg">
-                    All Time
+                    All Tags
                   </SelectItem>
-                  <SelectItem value="week" className="rounded-lg">
-                    This Week
+                  {tags.map((tag) => (
+                    <SelectItem
+                      key={tag.id}
+                      value={tag.id.toString()}
+                      className="rounded-lg"
+                    >
+                      {tag.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Select
+                value={selectedMonth?.toString() || "all"}
+                onValueChange={(value) =>
+                  setSelectedMonth(
+                    value === "all" ? undefined : parseInt(value)
+                  )
+                }
+              >
+                <SelectTrigger className="w-full sm:w-48 h-12 bg-white/60 dark:bg-gray-900/60 border-green-200/50 hover:border-green-300 rounded-xl">
+                  <div className="flex items-center gap-2">
+                    <Calendar className="h-4 w-4 text-green-600" />
+                    <SelectValue placeholder="Filter by month" />
+                  </div>
+                </SelectTrigger>
+                <SelectContent className="rounded-xl border-0 shadow-xl bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm">
+                  <SelectItem value="all" className="rounded-lg">
+                    All Months
                   </SelectItem>
-                  <SelectItem value="month" className="rounded-lg">
-                    1 Month
+                  {Array.from({ length: 12 }, (_, i) => i + 1).map((month) => (
+                    <SelectItem
+                      key={month}
+                      value={month.toString()}
+                      className="rounded-lg"
+                    >
+                      {new Date(2024, month - 1).toLocaleDateString("en-US", {
+                        month: "long",
+                      })}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Select
+                value={selectedYear?.toString() || "all"}
+                onValueChange={(value) =>
+                  setSelectedYear(value === "all" ? undefined : parseInt(value))
+                }
+              >
+                <SelectTrigger className="w-full sm:w-48 h-12 bg-white/60 dark:bg-gray-900/60 border-orange-200/50 hover:border-orange-300 rounded-xl">
+                  <div className="flex items-center gap-2">
+                    <Calendar className="h-4 w-4 text-orange-600" />
+                    <SelectValue placeholder="Filter by year" />
+                  </div>
+                </SelectTrigger>
+                <SelectContent className="rounded-xl border-0 shadow-xl bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm">
+                  <SelectItem value="all" className="rounded-lg">
+                    All Years
                   </SelectItem>
-                  <SelectItem value="3months" className="rounded-lg">
-                    3 Months
-                  </SelectItem>
-                  <SelectItem value="year" className="rounded-lg">
-                    1 Year
-                  </SelectItem>
-                  <SelectItem value="3years" className="rounded-lg">
-                    3 Years
-                  </SelectItem>
-                  <SelectItem value="5years" className="rounded-lg">
-                    5 Years
-                  </SelectItem>
+                  {Array.from({ length: 10 }, (_, i) => 2024 - i).map(
+                    (year) => (
+                      <SelectItem
+                        key={year}
+                        value={year.toString()}
+                        className="rounded-lg"
+                      >
+                        {year}
+                      </SelectItem>
+                    )
+                  )}
                 </SelectContent>
               </Select>
             </div>
@@ -434,7 +375,7 @@ export default function PostsPage() {
                 <CardTitle className="text-2xl">
                   {isLoading
                     ? "Loading Stories..."
-                    : `Your Stories (${filteredPosts.length})`}
+                    : `Your Stories (${pagination?.total || posts.length})`}
                 </CardTitle>
                 <CardDescription>
                   Manage and track your creative content
@@ -446,16 +387,16 @@ export default function PostsPage() {
         <CardContent className="relative">
           {isLoading ? (
             <div className="grid gap-4">
-              {Array.from({ length: 5 }).map((_, index) => (
+              {Array.from({ length: postsPerPage }).map((_, index) => (
                 <PostCardSkeleton key={index} />
               ))}
             </div>
-          ) : filteredPosts.length === 0 ? (
+          ) : posts.length === 0 ? (
             <EmptyState />
           ) : (
             <>
               <div className="grid gap-4">
-                {currentPosts.map((post, index) => (
+                {posts.map((post, index) => (
                   <div
                     key={post.id}
                     className="group relative overflow-hidden rounded-2xl bg-white/70 dark:bg-gray-900/70 border border-white/50 dark:border-gray-800/50 hover:bg-white/90 dark:hover:bg-gray-900/90 hover:shadow-xl transition-all duration-500 hover:scale-[1.02]"
@@ -492,15 +433,28 @@ export default function PostsPage() {
                               align="end"
                               className="rounded-xl border-0 shadow-xl bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm"
                             >
-                              <DropdownMenuItem className="gap-2 rounded-lg">
+                              <DropdownMenuItem
+                                className="gap-2 rounded-lg"
+                                onClick={() =>
+                                  navigate(`/dashboard/posts/${post.id}`)
+                                }
+                              >
                                 <Eye className="h-4 w-4" />
                                 View
                               </DropdownMenuItem>
-                              <DropdownMenuItem className="gap-2 rounded-lg">
+                              <DropdownMenuItem
+                                className="gap-2 rounded-lg"
+                                onClick={() =>
+                                  navigate(`/dashboard/posts/${post.id}/edit`)
+                                }
+                              >
                                 <Edit className="h-4 w-4" />
                                 Edit
                               </DropdownMenuItem>
-                              <DropdownMenuItem className="gap-2 text-destructive rounded-lg">
+                              <DropdownMenuItem
+                                className="gap-2 text-destructive rounded-lg"
+                                onClick={() => handleDeletePost(post.id)}
+                              >
                                 <Trash2 className="h-4 w-4" />
                                 Delete
                               </DropdownMenuItem>
@@ -521,51 +475,58 @@ export default function PostsPage() {
                                 : "bg-sky-100 text-sky-700 border-sky-200"
                             }`}
                           >
-                            {post.category}
+                            {post.category?.name || "Uncategorized"}
                           </Badge>
                           <div className="flex items-center gap-2 text-muted-foreground">
-                            <User className="h-3 w-3" />
-                            <span>Yaser Syafa</span>
+                            <Clock className="h-3 w-3" />
+                            <span>{getReadTimeText(post.readTime)}</span>
                           </div>
                           <div className="flex items-center gap-2 text-muted-foreground">
-                            <Clock className="h-3 w-3" />
-                            <span>{post.date}</span>
+                            <Calendar className="h-3 w-3" />
+                            <span>{formatDate(post.createdAt)}</span>
                           </div>
                         </div>
 
                         <div className="flex flex-wrap gap-2">
-                          {post.tags.map((tag: string) => (
+                          {post.tags?.map((tag) => (
                             <Badge
-                              key={tag}
+                              key={tag.id}
                               variant="outline"
                               className="text-xs px-2 py-1 rounded-full bg-white/50 dark:bg-gray-800/50 hover:bg-blue-50 hover:border-blue-200 transition-colors"
                             >
-                              {tag}
+                              {tag.name}
                             </Badge>
                           ))}
                         </div>
+
+                        {post.excerpt && (
+                          <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2">
+                            {post.excerpt}
+                          </p>
+                        )}
                       </div>
                     </div>
                   </div>
                 ))}
               </div>
 
-              {totalPages > 1 && (
+              {pagination && pagination.totalPages > 1 && (
                 <div className="flex items-center justify-between mt-8 pt-6 border-t border-blue-100 dark:border-blue-800/30">
                   <div className="text-sm text-muted-foreground">
-                    Showing {startIndex + 1} to{" "}
-                    {Math.min(endIndex, filteredPosts.length)} of{" "}
-                    {filteredPosts.length} stories
+                    Showing {(pagination.page - 1) * pagination.limit + 1} to{" "}
+                    {Math.min(
+                      pagination.page * pagination.limit,
+                      pagination.total
+                    )}{" "}
+                    of {pagination.total} stories
                   </div>
 
                   <div className="flex items-center gap-2">
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() =>
-                        setCurrentPage((prev) => Math.max(prev - 1, 1))
-                      }
-                      disabled={currentPage === 1}
+                      onClick={() => setCurrentPage(pagination.page - 1)}
+                      disabled={!pagination.hasPrev}
                       className="gap-2 bg-white/60 dark:bg-gray-900/60 hover:bg-white/80 dark:hover:bg-gray-900/80 border-blue-200/50 hover:border-blue-300 rounded-xl disabled:opacity-50"
                     >
                       <ChevronLeft className="h-4 w-4" />
@@ -573,34 +534,33 @@ export default function PostsPage() {
                     </Button>
 
                     <div className="flex items-center gap-1">
-                      {Array.from({ length: totalPages }, (_, i) => i + 1).map(
-                        (page) => (
-                          <Button
-                            key={page}
-                            variant={
-                              currentPage === page ? "default" : "outline"
-                            }
-                            size="sm"
-                            onClick={() => setCurrentPage(page)}
-                            className={`w-10 h-10 rounded-xl ${
-                              currentPage === page
-                                ? "bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white"
-                                : "bg-white/60 dark:bg-gray-900/60 hover:bg-white/80 dark:hover:bg-gray-900/80 border-blue-200/50 hover:border-blue-300"
-                            }`}
-                          >
-                            {page}
-                          </Button>
-                        )
-                      )}
+                      {Array.from(
+                        { length: pagination.totalPages },
+                        (_, i) => i + 1
+                      ).map((page) => (
+                        <Button
+                          key={page}
+                          variant={
+                            pagination.page === page ? "default" : "outline"
+                          }
+                          size="sm"
+                          onClick={() => setCurrentPage(page)}
+                          className={`w-10 h-10 rounded-xl ${
+                            pagination.page === page
+                              ? "bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white"
+                              : "bg-white/60 dark:bg-gray-900/60 hover:bg-white/80 dark:hover:bg-gray-900/80 border-blue-200/50 hover:border-blue-300"
+                          }`}
+                        >
+                          {page}
+                        </Button>
+                      ))}
                     </div>
 
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() =>
-                        setCurrentPage((prev) => Math.min(prev + 1, totalPages))
-                      }
-                      disabled={currentPage === totalPages}
+                      onClick={() => setCurrentPage(pagination.page + 1)}
+                      disabled={!pagination.hasNext}
                       className="gap-2 bg-white/60 dark:bg-gray-900/60 hover:bg-white/80 dark:hover:bg-gray-900/80 border-blue-200/50 hover:border-blue-300 rounded-xl disabled:opacity-50"
                     >
                       Next

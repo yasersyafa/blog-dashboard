@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { postsApi } from "@/api/posts";
-import type { UpdatePostRequest } from "@/types/post";
+import type { UpdatePostRequest, GetPostsQueryParams } from "@/types/post";
 import { toast } from "sonner";
 
 // Query keys
@@ -13,10 +13,10 @@ export const postKeys = {
 };
 
 // Get all posts
-export const usePosts = () => {
+export const usePosts = (params?: GetPostsQueryParams) => {
   return useQuery({
-    queryKey: postKeys.lists(),
-    queryFn: postsApi.getAll,
+    queryKey: [...postKeys.lists(), params],
+    queryFn: () => postsApi.getAll(params),
   });
 };
 

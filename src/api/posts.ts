@@ -8,13 +8,16 @@ import type {
   GetPostResponse,
   UpdatePostResponse,
   DeletePostResponse,
+  GetPostsQueryParams,
 } from "@/types/post";
 
 export const postsApi = {
-  // Get all posts
-  getAll: async (): Promise<Post[]> => {
-    const response = await axiosInstance.get<GetPostsResponse>("/posts");
-    return response.data.data;
+  // Get all posts with query parameters
+  getAll: async (params?: GetPostsQueryParams): Promise<GetPostsResponse> => {
+    const response = await axiosInstance.get<GetPostsResponse>("/posts", {
+      params,
+    });
+    return response.data;
   },
 
   // Get post by ID
