@@ -1,8 +1,6 @@
-"use client";
-
-import type React from "react";
-
-import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useNavigate } from "react-router";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -14,104 +12,101 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowLeft, Save, Eye, Tag, FileText, Sparkles, X } from "lucide-react";
-import { Link } from "react-router";
+import {
+  ArrowLeft,
+  Save,
+  Eye,
+  Tag as TagIcon,
+  FileText,
+  Sparkles,
+  X,
+} from "lucide-react";
 import Editor from "@/components/tiptap/editor";
+import { useCategories } from "@/hooks/useCategories";
+import { useTags } from "@/hooks/useTags";
+import { useCreatePost } from "@/hooks/usePosts";
+import { createPostSchema } from "@/lib/validations/post";
+import type { CreatePostFormData } from "@/lib/validations/post";
 
 export default function CreatePostPage() {
-  const [isLoading, setIsLoading] = useState(false);
-  const [formData, setFormData] = useState({
-    title: "",
-    content: "",
-    excerpt: "",
-    category: "",
-    tags: [] as string[],
+  const navigate = useNavigate();
+
+  // Fetch categories and tags
+  const { data: categories = [], isLoading: categoriesLoading } =
+    useCategories();
+  const { data: tags = [], isLoading: tagsLoading } = useTags();
+  const createPostMutation = useCreatePost();
+
+  const {
+    register,
+    handleSubmit,
+    setValue,
+    watch,
+    formState: { errors, isSubmitting },
+  } = useForm<CreatePostFormData>({
+    resolver: zodResolver(createPostSchema),
+    defaultValues: {
+      title: "",
+      content: "",
+      excerpt: "",
+      categoryId: 0,
+      tags: [],
+    },
   });
 
-  const categories = [
-    "Development",
-    "Design",
-    "Technology",
-    "Business",
-    "Marketing",
-  ];
-  const predefinedTags = [
-    "React",
-    "Next.js",
-    "JavaScript",
-    "TypeScript",
-    "CSS",
-    "HTML",
-    "Node.js",
-    "Python",
-    "Design",
-    "UI/UX",
-    "Frontend",
-    "Backend",
-    "Tutorial",
-    "Tips",
-    "Guide",
-    "Review",
-    "News",
-    "Opinion",
-  ];
+  const watchedTags = watch("tags");
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
-
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-
-    console.log("Creating post:", formData);
-    setIsLoading(false);
-
-    // In real app, redirect to posts list or show success message
-  };
-
-  const addTag = (tag: string) => {
-    if (tag && !formData.tags.includes(tag)) {
-      setFormData((prev) => ({
-        ...prev,
-        tags: [...prev.tags, tag],
-      }));
+  const onSubmit = async (data: CreatePostFormData) => {
+    const formDataWithContent = {
+      ...data,
+    };
+    try {
+      // Update content with editor content
+      await createPostMutation.mutateAsync(formDataWithContent);
+      // Redirect to posts list on success
+      navigate("/dashboard/posts");
+    } catch (error) {
+      // Error handling is done in the mutation hook
+      console.error("Failed to create post:", error);
     }
   };
 
-  const removeTag = (tagToRemove: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      tags: prev.tags.filter((tag) => tag !== tagToRemove),
-    }));
+  const addTag = (tagId: number) => {
+    const currentTags = watch("tags");
+    if (!currentTags.includes(tagId) && currentTags.length < 5) {
+      setValue("tags", [...currentTags, tagId]);
+    }
   };
 
-  const availableTags = predefinedTags.filter(
-    (tag) => !formData.tags.includes(tag)
-  );
+  const removeTag = (tagIdToRemove: number) => {
+    const currentTags = watch("tags");
+    setValue(
+      "tags",
+      currentTags.filter((tagId) => tagId !== tagIdToRemove)
+    );
+  };
+
+  const getTagName = (tagId: number) => {
+    return tags.find((tag) => tag.id === tagId)?.name || "";
+  };
+
+  const availableTags = tags.filter((tag) => !watchedTags.includes(tag.id));
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-sky-50 via-blue-50 to-indigo-100">
-      {/* Floating background elements */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-20 left-10 w-32 h-32 bg-blue-200/30 rounded-full blur-xl animate-pulse"></div>
-        <div className="absolute top-40 right-20 w-24 h-24 bg-sky-300/20 rounded-full blur-lg animate-pulse delay-1000"></div>
-        <div className="absolute bottom-32 left-1/4 w-40 h-40 bg-indigo-200/25 rounded-full blur-2xl animate-pulse delay-2000"></div>
-      </div>
-
       <div className="relative z-10 p-6 mx-auto">
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-center gap-4 mb-4">
-            <Link to="/dashboard/posts">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-slate-600 hover:text-blue-600 hover:bg-blue-50"
-              >
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Back to Posts
-              </Button>
-            </Link>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-slate-600 hover:text-blue-600 hover:bg-blue-50"
+              onClick={() => navigate("/dashboard/posts")}
+            >
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back to Posts
+            </Button>
           </div>
 
           <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 border border-white/50 shadow-lg">
@@ -129,7 +124,7 @@ export default function CreatePostPage() {
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Main Content */}
             <div className="lg:col-span-2 space-y-6">
@@ -147,16 +142,14 @@ export default function CreatePostPage() {
                 <CardContent>
                   <Input
                     placeholder="Enter your post title..."
-                    value={formData.title}
-                    onChange={(e) =>
-                      setFormData((prev) => ({
-                        ...prev,
-                        title: e.target.value,
-                      }))
-                    }
+                    {...register("title")}
                     className="text-lg font-medium border-slate-200 focus:border-blue-400 focus:ring-blue-400/20"
-                    required
                   />
+                  {errors.title && (
+                    <p className="mt-2 text-sm text-red-600">
+                      {errors.title.message}
+                    </p>
+                  )}
                 </CardContent>
               </Card>
 
@@ -168,26 +161,23 @@ export default function CreatePostPage() {
                     Content
                   </CardTitle>
                   <p className="text-sm text-slate-600 mt-1">
-                    Write your full story content using markdown formatting
+                    Write your full story content using the rich text editor
                   </p>
                 </CardHeader>
                 <CardContent>
-                  {/* <Textarea
-                    placeholder="Write your story here..."
-                    value={formData.content}
-                    onChange={(e) =>
-                      setFormData((prev) => ({
-                        ...prev,
-                        content: e.target.value,
-                      }))
-                    }
-                    className="min-h-[300px] border-slate-200 focus:border-blue-400 focus:ring-blue-400/20 resize-none"
-                    required
-                  /> */}
-                  <Editor />
+                  <Editor
+                    onChangeContent={(content) => {
+                      setValue("content", content);
+                    }}
+                  />
                   <div className="mt-2 text-sm text-slate-500">
-                    {formData.content.length} characters
+                    {watch("content")?.length || 0} characters
                   </div>
+                  {errors.content && (
+                    <p className="mt-2 text-sm text-red-600">
+                      {errors.content.message}
+                    </p>
+                  )}
                 </CardContent>
               </Card>
 
@@ -205,19 +195,18 @@ export default function CreatePostPage() {
                 <CardContent>
                   <Textarea
                     placeholder="Write a brief excerpt or summary..."
-                    value={formData.excerpt}
-                    onChange={(e) =>
-                      setFormData((prev) => ({
-                        ...prev,
-                        excerpt: e.target.value,
-                      }))
-                    }
+                    {...register("excerpt")}
                     className="min-h-[100px] border-slate-200 focus:border-blue-400 focus:ring-blue-400/20 resize-none"
                     maxLength={200}
                   />
                   <div className="mt-2 text-sm text-slate-500">
-                    {formData.excerpt.length}/200 characters
+                    {watch("excerpt")?.length || 0}/200 characters
                   </div>
+                  {errors.excerpt && (
+                    <p className="mt-2 text-sm text-red-600">
+                      {errors.excerpt.message}
+                    </p>
+                  )}
                 </CardContent>
               </Card>
             </div>
@@ -237,10 +226,13 @@ export default function CreatePostPage() {
                 </CardHeader>
                 <CardContent>
                   <Select
-                    value={formData.category}
-                    onValueChange={(value) =>
-                      setFormData((prev) => ({ ...prev, category: value }))
+                    value={
+                      watch("categoryId")?.toString() || "No Category Selected"
                     }
+                    onValueChange={(value) =>
+                      setValue("categoryId", parseInt(value))
+                    }
+                    disabled={categoriesLoading}
                   >
                     <SelectTrigger className="border-slate-200 focus:border-blue-400 w-full">
                       <SelectValue placeholder="Select category" />
@@ -248,14 +240,19 @@ export default function CreatePostPage() {
                     <SelectContent>
                       {categories.map((category) => (
                         <SelectItem
-                          key={category}
-                          value={category.toLowerCase()}
+                          key={category.id}
+                          value={category.id.toString()}
                         >
-                          {category}
+                          {category.name}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
+                  {errors.categoryId && (
+                    <p className="mt-2 text-sm text-red-600">
+                      {errors.categoryId.message}
+                    </p>
+                  )}
                 </CardContent>
               </Card>
 
@@ -263,7 +260,7 @@ export default function CreatePostPage() {
               <Card className="bg-white/70 backdrop-blur-sm border-white/50 shadow-lg">
                 <CardHeader className="pb-4">
                   <CardTitle className="flex items-center gap-2 text-slate-800">
-                    <Tag className="w-5 h-5 text-blue-500" />
+                    <TagIcon className="w-5 h-5 text-blue-500" />
                     Tags
                   </CardTitle>
                   <p className="text-sm text-slate-600 mt-1">
@@ -271,17 +268,17 @@ export default function CreatePostPage() {
                   </p>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {/* Selected Tags - Medium style without boundaries */}
-                  {formData.tags.length > 0 && (
+                  {/* Selected Tags */}
+                  {watchedTags && watchedTags.length > 0 && (
                     <div className="space-y-3">
                       <div className="flex flex-wrap gap-2">
-                        {formData.tags.map((tag) => (
+                        {watchedTags.map((tagId) => (
                           <span
-                            key={tag}
+                            key={tagId}
                             className="inline-flex items-center gap-1.5 px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm rounded-full cursor-pointer transition-colors group"
-                            onClick={() => removeTag(tag)}
+                            onClick={() => removeTag(tagId)}
                           >
-                            {tag}
+                            {getTagName(tagId)}
                             <X className="w-3 h-3 opacity-60 group-hover:opacity-100 transition-opacity" />
                           </span>
                         ))}
@@ -289,12 +286,11 @@ export default function CreatePostPage() {
                     </div>
                   )}
                   <div className="text-xs text-slate-500">
-                    {formData.tags.length}/5 tags • Click to remove
+                    {watchedTags?.length || 0}/5 tags • Click to remove
                   </div>
 
-                  {/* Add Tags Button */}
+                  {/* Available Tags */}
                   <div className="space-y-3">
-                    {/* Available Tags - Medium style grid */}
                     <div className="space-y-2 p-3 bg-slate-50 rounded-lg border border-slate-200">
                       <div className="text-sm font-medium text-slate-700">
                         Suggested tags
@@ -302,18 +298,25 @@ export default function CreatePostPage() {
                       <div className="flex flex-wrap gap-2">
                         {availableTags.slice(0, 12).map((tag) => (
                           <button
-                            key={tag}
+                            key={tag.id}
                             type="button"
-                            onClick={() => addTag(tag)}
+                            onClick={() => addTag(tag.id)}
                             className="px-3 py-1 text-sm text-slate-600 hover:text-slate-800 hover:bg-white border border-slate-300 hover:border-slate-400 rounded-full transition-all duration-200"
-                            disabled={formData.tags.length >= 5}
+                            disabled={
+                              (watchedTags?.length || 0) >= 5 || tagsLoading
+                            }
                           >
-                            {tag}
+                            {tag.name}
                           </button>
                         ))}
                       </div>
                     </div>
                   </div>
+                  {errors.tags && (
+                    <p className="mt-2 text-sm text-red-600">
+                      {errors.tags.message}
+                    </p>
+                  )}
                 </CardContent>
               </Card>
 
@@ -321,10 +324,18 @@ export default function CreatePostPage() {
                 <CardContent className="pt-6">
                   <Button
                     type="submit"
-                    disabled={isLoading || !formData.title || !formData.content}
+                    disabled={
+                      isSubmitting ||
+                      createPostMutation.isPending ||
+                      !watch("title") ||
+                      !watch("content") ||
+                      !watch("excerpt") ||
+                      !watch("categoryId") ||
+                      (watchedTags?.length || 0) === 0
+                    }
                     className="w-full bg-gradient-to-r from-blue-500 to-sky-500 hover:from-blue-600 hover:to-sky-600 text-white shadow-lg"
                   >
-                    {isLoading ? (
+                    {isSubmitting || createPostMutation.isPending ? (
                       <>
                         <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
                         Creating...

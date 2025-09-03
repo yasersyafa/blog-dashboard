@@ -140,17 +140,25 @@ function debounce<T extends (...args: any[]) => void>(func: T, wait: number) {
   };
 }
 
-export default function TextEditor() {
+export default function TextEditor({
+  onChangeContent,
+}: {
+  onChangeContent?: (content: string) => void;
+}) {
   const [content, setContent] = useState(DEFAULT);
 
   const onValueChange = useMemo(
     () =>
       debounce((value: string) => {
         setContent(value);
+        // Call the parent callback if provided
+        if (onChangeContent) {
+          onChangeContent(value);
+        }
         // kalau perlu debug, hati-hati jangan spam
         // console.log("value text:", value);
       }, 100),
-    []
+    [onChangeContent]
   );
 
   return (
@@ -160,6 +168,7 @@ export default function TextEditor() {
         content={content}
         onChangeContent={onValueChange}
         extensions={extensions}
+        maxHeight={500}
         bubbleMenu={{
           render({ extensionsNames, editor }, bubbleDefaultDom) {
             return (
